@@ -18,7 +18,8 @@ namespace dbg
         terminated
     };
 
-    struct stop_reason {
+    struct stop_reason
+    {
         stop_reason(int wait_status);
         process_state reason;
         std::uint8_t info;
@@ -34,9 +35,8 @@ namespace dbg
         ~process();
 
         static std::unique_ptr<process> launch(std::filesystem::path path);
-        
+
         static std::unique_ptr<process> attach(pid_t pid);
-        
 
         void resume();
         stop_reason wait_on_signal();
