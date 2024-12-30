@@ -1,5 +1,6 @@
 #include <libdbg/process.hpp>
 #include <libdbg/error.hpp>
+#include <libdbg/pipe.hpp>
 
 #include <sys/ptrace.h>
 #include <sys/types.h>
@@ -27,8 +28,16 @@ dbg::process::~process()
     }
 }
 
+void exit_with_perror(dbg::pipe &channel, std::string const &prefix)
+{
+    auto message = prefix + ": " + std::strerror(errno);
+    channel.write(reinterpret_cast<std::byte *>(message.data()), message.length());
+    exit(-1);
+}
+
 std::unique_ptr<dbg::process> dbg::process::launch(std::filesystem::path path)
 {
+    pipe channel(true);
     pid_t pid = 0;
     if ((pid = fork()) < 0)
     {
@@ -37,17 +46,32 @@ std::unique_ptr<dbg::process> dbg::process::launch(std::filesystem::path path)
 
     if (pid == 0)
     {
+        // child closes the read-end (useless)
+        channel.close_read();
         // child process
         // enable tracing for the current process
         if (ptrace(PTRACE_TRACEME, 0, nullptr, nullptr) < 0)
         {
-            dbg::error::send_errno("Tracing failed");
+            exit_with_perror(channel, "ptrace failed");
         }
         // launch the debugee
         if (execlp(path.c_str(), path.c_str(), nullptr) < 0)
         {
-            dbg::error::send_errno("execlp failed");
+            exit_with_perror(channel, "execlp failed");
         }
+    }
+
+    // parent closes the write end
+    channel.close_write();
+    auto data = channel.read();
+    channel.close_read();
+
+    if (data.size() > 0)
+    {
+        // wait for child process to close
+        waitpid(pid, nullptr, 0);
+        auto chars = reinterpret_cast<char *>(data.data());
+        error::send(std::string(chars, chars + data.size()));
     }
 
     std::unique_ptr<dbg::process> proc(new dbg::process(pid, true));
