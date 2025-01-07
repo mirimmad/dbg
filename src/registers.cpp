@@ -1,6 +1,6 @@
-#include <libdbg/registers.hpp>
 #include <libdbg/bit.hpp>
 #include <libdbg/process.hpp>
+#include <libdbg/registers.hpp>
 #include <iostream>
 
 dbg::registers::value dbg::registers::read(const register_info &info) const
@@ -59,4 +59,8 @@ void dbg::registers::write(const register_info& info, value val) {
             std::terminate();
         }
     }, val);
+
+    // Align the address to 8 byte boundary
+    auto aligned_offset = info.offset & ~0b111;
+    proc_->write_user_area(info.offset, from_bytes<std::uint64_t>(bytes + info.offset));
 }

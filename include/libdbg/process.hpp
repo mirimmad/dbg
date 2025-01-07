@@ -7,6 +7,7 @@
 #include <unistd.h>
 #include <sys/ptrace.h>
 #include "error.hpp"
+#include <libdbg/registers.hpp>
 
 namespace dbg
 {
@@ -51,11 +52,18 @@ namespace dbg
             return state_;
         }
 
+        registers& get_registers() { return *registers_;}
+        const registers& get_registers() const { return *registers_; }
+
+        void write_user_area(std::size_t offset, std::uint64_t data);
+
     private:
-        process(pid_t pid, bool terminate_on_end) : pid_(pid), terminate_on_end_(terminate_on_end) {}
+        process(pid_t pid, bool terminate_on_end) : pid_(pid), terminate_on_end_(terminate_on_end), registers_(new registers(*this)) {}
         pid_t pid_ = 0;
         bool terminate_on_end_ = true;
         process_state state_ = process_state::stopped;
+        std::unique_ptr<registers> registers_;
+        void read_all_registers();
     };
 }
 

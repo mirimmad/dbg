@@ -9,6 +9,7 @@
 
 namespace dbg
 {
+    class process;
     class registers
     {
     public:
