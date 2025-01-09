@@ -117,7 +117,8 @@ dbg::stop_reason dbg::process::wait_on_signal()
     stop_reason reason(wait_status);
     state_ = reason.reason;
 
-    if (state_ == process_state::stopped) {
+    if (state_ == process_state::stopped)
+    {
         read_all_registers();
     }
 
@@ -145,32 +146,55 @@ dbg::stop_reason::stop_reason(int wait_status)
     }
 }
 
-void dbg::process::read_all_registers() {
-    if(ptrace(PTRACE_GETREGS, pid_, nullptr, &get_registers().data_.regs) < 0) {
+void dbg::process::read_all_registers()
+{
+    if (ptrace(PTRACE_GETREGS, pid_, nullptr, &get_registers().data_.regs) < 0)
+    {
         error::send_errno("Could not read GPR registers");
     }
 
-    if(ptrace(PTRACE_GETFPREGS, pid_, nullptr, &get_registers().data_.i387) < 0) {
+    if (ptrace(PTRACE_GETFPREGS, pid_, nullptr, &get_registers().data_.i387) < 0)
+    {
         error::send_errno("Could not read FPR registers");
     }
 
     // debug registers
-    for (int i = 0; i <8; ++i) {
-        // add 'i' to the integral representation to the 0th debug register
+    for (int i = 0; i < 8; ++i)
+    {
+        // add 'i' to the integral representation of the 0th debug register
         // cast to and from from `register_id`
         auto id = static_cast<int>(register_id::dr0) + i;
         auto info = register_info_by_id(static_cast<register_id>(id));
 
         errno = 0;
         std::uint64_t data = ptrace(PTRACE_PEEKUSER, pid_, info.offset, nullptr);
-        if(errno != 0) error::send_errno("Could not read debug register");
+        if (errno != 0)
+            error::send_errno("Could not read debug register");
 
         get_registers().data_.u_debugreg[i] = data;
     }
 }
 
-void dbg::process::write_user_area(std::size_t offset, std::uint64_t data) {
-    if(ptrace(PTRACE_POKEUSER, pid_, offset, data) < 0) {
+void dbg::process::write_user_area(std::size_t offset, std::uint64_t data)
+{
+    if (ptrace(PTRACE_POKEUSER, pid_, offset, data) < 0)
+    {
         error::send_errno("Could not write to the user data");
+    }
+}
+
+void dbg::process::write_fprs(const user_fpregs_struct &fprs)
+{
+    if (ptrace(PTRACE_SETFPREGS, pid_, nullptr, &fprs) < 0)
+    {
+        error::send_errno("Could not write floating point registers");
+    }
+}
+
+void dbg::process::write_gprs(const user_regs_struct &gprs)
+{
+    if (ptrace(PTRACE_SETREGS, pid_, nullptr, &gprs) < 0)
+    {
+        error::send_errno("Could not write general purpose registers");
     }
 }

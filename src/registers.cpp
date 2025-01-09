@@ -47,9 +47,11 @@ dbg::registers::value dbg::registers::read(const register_info &info) const
     }
 }
 
-void dbg::registers::write(const register_info& info, value val) {
+void dbg::registers::write(const register_info &info, value val)
+{
     auto bytes = as_bytes(data_);
-    std::visit([&](auto& v){
+    std::visit([&](auto &v)
+               {
         if(sizeof(v) == info.size) {
             auto val_bytes = as_bytes(v);
             std::copy(val_bytes, val_bytes + sizeof(v), bytes + info.offset);
@@ -57,10 +59,16 @@ void dbg::registers::write(const register_info& info, value val) {
             std::cerr << "dbg::register::write called with"
                         "mismatched register and value sizes" << std::endl;
             std::terminate();
-        }
-    }, val);
+        } }, val);
 
-    // Align the address to 8 byte boundary
-    auto aligned_offset = info.offset & ~0b111;
-    proc_->write_user_area(info.offset, from_bytes<std::uint64_t>(bytes + info.offset));
+    if (info.type == register_type::fpr)
+    {
+        proc_->write_fprs(data_.i387);
+    }
+    else
+    {
+        // Align the address to 8 byte boundary
+        auto aligned_offset = info.offset & ~0b111;
+        proc_->write_user_area(aligned_offset, from_bytes<std::uint64_t>(bytes + info.offset));
+    }
 }

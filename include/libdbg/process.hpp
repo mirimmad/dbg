@@ -56,6 +56,8 @@ namespace dbg
         const registers& get_registers() const { return *registers_; }
 
         void write_user_area(std::size_t offset, std::uint64_t data);
+        void write_fprs(const user_fpregs_struct& fprs);
+        void write_gprs(const user_regs_struct& gprs);
 
     private:
         process(pid_t pid, bool terminate_on_end) : pid_(pid), terminate_on_end_(terminate_on_end), registers_(new registers(*this)) {}
