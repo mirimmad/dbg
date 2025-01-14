@@ -2,6 +2,45 @@
 #include <libdbg/process.hpp>
 #include <libdbg/registers.hpp>
 #include <iostream>
+#include <type_traits>
+#include <algorithm>
+
+namespace
+{
+    template <class T>
+    dbg::byte128 widen(const dbg::register_info &info, T t)
+    {
+        using namespace dbg;
+        if constexpr (std::is_floating_point_v<T>)
+        {
+            if (info.format == register_format::double_float)
+            {
+                return to_byte128(static_cast<double>(t));
+            }
+            if (info.format == register_format::long_double)
+                return to_byte128(static_cast<long double>(t));
+        }
+        else if constexpr (std::is_signed_v<T>)
+        {
+            if (info.format == register_format::uint)
+            {
+                switch (info.size)
+                {
+                case 2:
+                    return to_byte128(static_cast<std::int16_t>(t));
+                case 4:
+                    return to_byte128(static_cast<std::int32_t>(t));
+                case 8:
+                    return to_byte128(static_cast<std::int64_t>(t));
+                default:
+                    error::send_errno("Invalid size in 'widen'");
+                }
+            }
+        }
+
+        return to_byte128(t);
+    }
+}
 
 dbg::registers::value dbg::registers::read(const register_info &info) const
 {
@@ -52,9 +91,10 @@ void dbg::registers::write(const register_info &info, value val)
     auto bytes = as_bytes(data_);
     std::visit([&](auto &v)
                {
-        if(sizeof(v) == info.size) {
-            auto val_bytes = as_bytes(v);
-            std::copy(val_bytes, val_bytes + sizeof(v), bytes + info.offset);
+        if(sizeof(v) <= info.size) {
+            auto wide = widen(info, v);
+            auto val_bytes = as_bytes(wide);
+            std::copy(val_bytes, val_bytes + info.size, bytes + info.offset);
         } else {
             std::cerr << "dbg::register::write called with"
                         "mismatched register and value sizes" << std::endl;

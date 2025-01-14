@@ -25,16 +25,16 @@ namespace dbg
     }
 
     template<class From>
-    byte128 to_byte128(From& from) {
+    byte128 to_byte128(From from) {
         byte128 ret{};
-        memccpy(&ret, &from, sizeof(From));
+        std::memcpy(&ret, &from, sizeof(From));
         return ret;
     }
 
     template<class From>
-    byte64 to_bytes64(From& from) {
+    byte64 to_bytes64(From from) {
         byte64 ret{};
-        memccpy(&ret, &from, sizeof(From));
+        std::memcpy(&ret, &from, sizeof(From));
         return ret;
     }
 
